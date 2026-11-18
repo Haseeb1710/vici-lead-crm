@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — ViciLead CRM &amp; Dialer Bridge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #070b14;
+      color: #e2e8f0;
+      background-image:
+        radial-gradient(at 15% 15%, rgba(79, 70, 229, 0.16) 0px, transparent 50%),
+        radial-gradient(at 85% 85%, rgba(6, 182, 212, 0.14) 0px, transparent 50%);
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+  <div class="w-full max-w-md">
+    <!-- Brand Header -->
+    <div class="text-center mb-7">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-500/25 mb-4">
+        <i class="fa-solid fa-phone-volume"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-white tracking-tight">ViciLead CRM</h1>
+      <p class="text-xs text-slate-400 mt-1">Partner Lead Intake API &amp; VICIdial Dialer Portal</p>
+    </div>
+
+    <!-- Login Card -->
+    <div class="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-5">
+      <div>
+        <h2 class="text-base font-bold text-white">Sign in to your account</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Enter your CRM credentials to access leads, API keys &amp; VICIdial controls.</p>
+      </div>
+
+      <div id="loginErrorBox" class="hidden rounded-xl bg-rose-950/80 border border-rose-500/40 px-3.5 py-2.5 text-xs text-rose-200 flex items-center gap-2">
+        <i class="fa-solid fa-circle-exclamation text-rose-400"></i>
+        <span id="loginErrorText">Invalid credentials</span>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="text-xs font-medium text-slate-300 block mb-1.5">Username</label>
+          <div class="relative">
+            <i class="fa-regular fa-user absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="usernameInput" type="text" required autocomplete="username" placeholder="haseeb or admin"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium text-slate-300 block mb-1.5">Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="passwordInput" type="password" required autocomplete="current-password" placeholder="••••••••"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" />
+            <button type="button" onclick="togglePassVisibility()" class="absolute right-3.5 top-2.5 text-slate-500 hover:text-slate-300 text-xs">
+              <i id="passEyeIcon" class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button id="loginSubmitBtn" type="submit"
+          class="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition">
+          <span>Sign In to Dashboard</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+      </form>
+
+      <!-- Quick Demo Credentials Fill -->
+      <div class="border-t border-slate-800/80 pt-4">
+        <div class="text-[11px] text-slate-400 font-medium mb-2 flex items-center justify-between">
+          <span>Quick Fill Credentials:</span>
+          <span class="text-slate-500">Click to auto-fill</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="fillCreds('haseeb', 'haseeb123')"
+            class="px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 text-left transition">
+            <div class="text-xs font-semibold text-indigo-400">Haseeb (Admin)</div>
+            <div class="text-[11px] text-slate-400 mono">haseeb / haseeb123</div>
+          </button>
+          <button type="button" onclick="fillCreds('admin', 'admin123')"
+            class="px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 text-left transition">
+            <div class="text-xs font-semibold text-cyan-400">Default Admin</div>
+            <div class="text-[11px] text-slate-400 mono">admin / admin123</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center text-[11px] text-slate-500 mt-5">
+      Public Partner Lead Intake API (<code class="text-slate-400 mono">/api/v1/leads/intake</code>) remains accessible using Partner API Keys.
+    </p>
+  </div>
+
+  <script>
+    // If already authenticated, redirect to dashboard
+    (async function checkExistingSession() {
+      const token = localStorage.getItem('vcrm_token');
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+        });
+        if (res.ok) {
+          window.location.href = '/';
+        }
+      } catch {}
+    })();
+
+    function fillCreds(u, p) {
+      document.getElementById('usernameInput').value = u;
+      document.getElementById('passwordInput').value = p;
+    }
+
+    function togglePassVisibility() {
+      const inp = document.getElementById('passwordInput');
+      const icon = document.getElementById('passEyeIcon');
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'fa-regular fa-eye-slash';
+      } else {
+        inp.type = 'password';
+        icon.className = 'fa-regular fa-eye';
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('loginErrorBox');
+      const errText = document.getElementById('loginErrorText');
+      const btn = document.getElementById('loginSubmitBtn');
+
+      errBox.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Signing in...</span>';
+
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          errText.textContent = data.error || 'Login failed.';
+          errBox.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerHTML = '<span>Sign In to Dashboard</span><i class="fa-solid fa-arrow-right text-xs"></i>';
+          return;
+        }
+
+        localStorage.setItem('vcrm_token', data.token);
+        localStorage.setItem('vcrm_user', JSON.stringify(data.user));
+        window.location.href = '/';
+      } catch (err) {
+        errText.textContent = 'Network error: ' + err.message;
+        errBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<span>Sign In to Dashboard</span><i class="fa-solid fa-arrow-right text-xs"></i>';
+      }
+    }
+  </script>
+</body>
+</html>

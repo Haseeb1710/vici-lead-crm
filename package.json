@@ -1,0 +1,16 @@
+{
+  "name": "vici-lead-crm",
+  "version": "1.0.0",
+  "description": "Lead Intake CRM with Partner API Keys, Shareable Docs & VICIdial Non-Agent + Agent API Integration",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.x"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

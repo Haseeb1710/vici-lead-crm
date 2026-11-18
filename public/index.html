@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ViciLead CRM — Partner API & VICIdial Bridge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #e2e8f0; }
+    code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Navigation & Active Agent Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-phone-volume"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-white">ViciLead CRM</h1>
+            <span id="simBadge" class="hidden px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              SIMULATION MODE
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Lead Intake API &amp; VICIdial Dialer Integration</p>
+        </div>
+      </div>
+
+      <!-- Agent Quick Dialer Session Bar -->
+      <div class="flex items-center gap-3 bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <label class="text-xs font-medium text-slate-400">VICI Agent ID:</label>
+          <input id="activeAgentInput" type="text" value="1001"
+            class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 mono"
+            title="Your logged-in VICIdial Agent User ID for Click-to-Dial" />
+        </div>
+        <div class="h-4 w-px bg-slate-800"></div>
+        <div class="flex items-center gap-1.5">
+          <button onclick="triggerAgentControl('pause', { pause_value: 'RESUME' })"
+            class="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-medium transition"
+            title="Resume VICIdial Agent">
+            <i class="fa-solid fa-play mr-1"></i>Ready
+          </button>
+          <button onclick="triggerAgentControl('pause', { pause_value: 'PAUSE' })"
+            class="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-xs font-medium transition"
+            title="Pause VICIdial Agent">
+            <i class="fa-solid fa-pause mr-1"></i>Pause
+          </button>
+          <button onclick="triggerAgentControl('hangup')"
+            class="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-medium transition"
+            title="Hangup active VICIdial call">
+            <i class="fa-solid fa-phone-slash mr-1"></i>Hangup
+          </button>
+        </div>
+        <div class="h-4 w-px bg-slate-800"></div>
+        <!-- Logged-in User & Logout -->
+        <div class="flex items-center gap-2">
+          <span id="loggedInUserBadge" class="text-xs font-semibold text-indigo-300">Admin</span>
+          <button onclick="logoutUser()"
+            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 text-xs font-medium transition"
+            title="Sign Out">
+            <i class="fa-solid fa-right-from-bracket mr-1"></i>Logout
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 border-t border-slate-800/60 pt-1">
+      <button onclick="switchTab('leads')" id="tabBtn-leads"
+        class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-indigo-500 text-indigo-400 flex items-center gap-2">
+        <i class="fa-solid fa-users"></i> Leads &amp; Click-to-Dial
+      </button>
+      <button onclick="switchTab('api')" id="tabBtn-api"
+        class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <i class="fa-solid fa-key"></i> Shareable Lead Intake API
+      </button>
+      <button onclick="switchTab('vici')" id="tabBtn-vici"
+        class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <i class="fa-solid fa-server"></i> VICIdial Configuration
+      </button>
+      <button onclick="switchTab('logs')" id="tabBtn-logs"
+        class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <i class="fa-solid fa-terminal"></i> Dialer API Logs
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-1 space-y-6">
+
+    <!-- KPI Stats Row -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">Total CRM Leads</div>
+        <div id="statTotalLeads" class="text-2xl font-bold text-white mt-1">0</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">Synced to VICIdial</div>
+        <div id="statSyncedLeads" class="text-2xl font-bold text-emerald-400 mt-1">0</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">Pending VICI Push</div>
+        <div id="statPendingLeads" class="text-2xl font-bold text-amber-400 mt-1">0</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">Failed VICI Push</div>
+        <div id="statFailedLeads" class="text-2xl font-bold text-rose-400 mt-1">0</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">Dialed Today</div>
+        <div id="statDialedToday" class="text-2xl font-bold text-cyan-400 mt-1">0</div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">Active API Sources</div>
+        <div id="statActiveSources" class="text-2xl font-bold text-indigo-400 mt-1">0</div>
+      </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- TAB 1: LEADS & CLICK-TO-DIAL                                       -->
+    <!-- ================================================================== -->
+    <section id="tab-leads" class="space-y-4">
+      <!-- Action Toolbar -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2.5 flex-1">
+          <div class="relative flex-1 min-w-[220px] max-w-md">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input id="leadSearchInput" type="text" oninput="loadLeads()"
+              placeholder="Search name, phone, company, email, vendor code..."
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+          </div>
+
+          <select id="filterStatus" onchange="loadLeads()"
+            class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="">All Statuses</option>
+            <option value="NEW">NEW</option>
+            <option value="DIALING">DIALING</option>
+            <option value="CONTACTED">CONTACTED</option>
+            <option value="INTERESTED">INTERESTED</option>
+            <option value="CALLBACK">CALLBACK</option>
+            <option value="SALE">SALE</option>
+            <option value="DNC">DNC</option>
+          </select>
+
+          <select id="filterViciStatus" onchange="loadLeads()"
+            class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="">All VICI Sync States</option>
+            <option value="SYNCED">Synced to VICI</option>
+            <option value="PENDING">Pending Push</option>
+            <option value="FAILED">Sync Failed</option>
+          </select>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="batchPushUnsynced()"
+            class="px-3.5 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-2 transition">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Push All Unsynced to VICI
+          </button>
+          <button onclick="openBulkImportModal()"
+            class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-2 transition">
+            <i class="fa-solid fa-file-csv"></i> Import CSV
+          </button>
+          <button onclick="openAddLeadModal()"
+            class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition">
+            <i class="fa-solid fa-plus"></i> Add Lead
+          </button>
+        </div>
+      </div>
+
+      <!-- Leads Table -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 bg-slate-950/60 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <th class="py-3 px-4">Lead / Company</th>
+                <th class="py-3 px-4">Phone Number</th>
+                <th class="py-3 px-4">Source &amp; List ID</th>
+                <th class="py-3 px-4">CRM Status</th>
+                <th class="py-3 px-4">VICIdial Sync</th>
+                <th class="py-3 px-4 text-right">Dialer &amp; Actions</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody" class="divide-y divide-slate-800/70 text-sm">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- TAB 2: SHAREABLE LEAD INTAKE API & PARTNER KEYS                    -->
+    <!-- ================================================================== -->
+    <section id="tab-api" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Column: API Sources List & Creator -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-base font-bold text-white">Partner / Vendor API Keys</h2>
+                <p class="text-xs text-slate-400">Generate dedicated keys per traffic source and auto-route into VICIdial lists.</p>
+              </div>
+            </div>
+
+            <!-- New Source Form -->
+            <form onsubmit="createApiSource(event)" class="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-3">
+              <div class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">+ Create New API Key</div>
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">Partner / Source Name *</label>
+                <input id="newSourceName" type="text" required placeholder="e.g. Solar Leads Vendor A"
+                  class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="text-xs text-slate-400 block mb-1">Target VICI List ID</label>
+                  <input id="newSourceListId" type="text" value="105"
+                    class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+                </div>
+                <div class="flex items-end pb-1">
+                  <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                    <input id="newSourceAutoPush" type="checkbox" checked class="rounded bg-slate-900 border-slate-700 text-indigo-600" />
+                    Auto-Push to VICI
+                  </label>
+                </div>
+              </div>
+              <button type="submit"
+                class="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+                Generate Partner API Key
+              </button>
+            </form>
+
+            <!-- Active Keys List -->
+            <div id="apiSourcesContainer" class="space-y-2.5">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Shareable Partner Documentation & Live Simulator -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 class="text-base font-bold text-white">Shareable Partner Webhook Specification</h2>
+                <p class="text-xs text-slate-400">Select a partner key on the left to customize &amp; copy instructions for your lead provider.</p>
+              </div>
+              <button onclick="copyShareableSpec()"
+                class="px-3 py-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-regular fa-copy"></i> Copy Partner Spec
+              </button>
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 font-medium">Endpoint URL (POST or GET):</span>
+                <span id="docEndpointUrl" class="mono text-cyan-400 font-semibold select-all"></span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 font-medium">Selected Partner Key:</span>
+                <span id="docSelectedKey" class="mono text-emerald-400 font-semibold select-all"></span>
+              </div>
+            </div>
+
+            <!-- Code Snippets -->
+            <div class="space-y-3">
+              <div>
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                  <span>1. JSON POST Request (cURL / Zapier / Make / Custom Backend)</span>
+                </div>
+                <pre id="docCurlSnippet" class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-300 overflow-x-auto leading-relaxed"></pre>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                  <span>2. Simple GET / Query String Webhook (For legacy dialers &amp; form trackers)</span>
+                </div>
+                <pre id="docGetSnippet" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-cyan-300 overflow-x-auto"></pre>
+              </div>
+            </div>
+
+            <!-- Built-in Live Webhook Tester -->
+            <div class="border-t border-slate-800 pt-4">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <h3 class="text-sm font-bold text-white">Test Incoming Partner Lead Right Now</h3>
+                  <p class="text-xs text-slate-400">Simulates an external vendor posting a lead to <code class="text-indigo-400">/api/v1/leads/intake</code></p>
+                </div>
+                <button onclick="sendTestPartnerLead()"
+                  class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
+                  <i class="fa-solid fa-bolt"></i> Send Test Lead via API
+                </button>
+              </div>
+              <pre id="testApiResponseBox" class="hidden bg-slate-950 border border-emerald-500/30 rounded-xl p-3 text-xs text-emerald-300 overflow-x-auto"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- TAB 3: VICIDIAL SERVER CONFIGURATION                               -->
+    <!-- ================================================================== -->
+    <section id="tab-vici" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div>
+              <h2 class="text-base font-bold text-white">VICIdial Server &amp; API Credentials</h2>
+              <p class="text-xs text-slate-400">Connects to both Non-Agent API (<code class="text-indigo-400">add_lead</code>) and Agent API (<code class="text-indigo-400">external_dial</code>)</p>
+            </div>
+            <button onclick="testViciServerConnection()"
+              class="px-3.5 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-plug-circle-check"></i> Test Connection
+            </button>
+          </div>
+
+          <div id="viciTestBanner" class="hidden rounded-xl p-3.5 text-xs mono"></div>
+
+          <form onsubmit="saveViciSettings(event)" class="space-y-4">
+            <!-- Simulation Mode Toggle -->
+            <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex items-center justify-between gap-4">
+              <div>
+                <div class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <i class="fa-solid fa-flask"></i> VICIdial Simulation / Sandbox Mode
+                </div>
+                <p class="text-[11px] text-slate-300 mt-0.5">
+                  When enabled, API calls format real VICIdial URLs and log realistic responses locally so you can test the entire CRM flow before connecting your live VICIdial IP/domain. Turn OFF when ready to hit your live dialer.
+                </p>
+              </div>
+              <input id="cfg_vici_simulation_mode" type="checkbox" class="w-5 h-5 rounded bg-slate-900 border-slate-700 text-amber-500" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="sm:col-span-2">
+                <label class="text-xs text-slate-400 block mb-1">VICIdial Server Base URL (HTTP or HTTPS)</label>
+                <input id="cfg_vici_server_url" type="text" required placeholder="https://dialer.yourdomain.com"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">Non-Agent API Path</label>
+                <input id="cfg_vici_non_agent_path" type="text" value="/vicidial/non_agent_api.php"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">Agent Screen API Path</label>
+                <input id="cfg_vici_agent_path" type="text" value="/agc/api.php"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">API Admin User (<code class="text-slate-500">user</code>)</label>
+                <input id="cfg_vici_api_user" type="text" required placeholder="6666"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">API Admin Password (<code class="text-slate-500">pass</code>)</label>
+                <input id="cfg_vici_api_pass" type="password" required placeholder="••••••••"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">Default VICIdial List ID</label>
+                <input id="cfg_vici_default_list_id" type="text" value="999"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">Default Phone Code</label>
+                <input id="cfg_vici_default_phone_code" type="text" value="1"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">Duplicate Check Rule</label>
+                <select id="cfg_vici_duplicate_check"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <option value="DUPLIVE">DUPLIVE (Check active lists in system)</option>
+                  <option value="DUPLIST">DUPLIST (Check within target list_id only)</option>
+                  <option value="DUPCAMP">DUPCAMP (Check within campaign lists)</option>
+                  <option value="DUPSYS">DUPSYS (Check entire VICIdial system)</option>
+                  <option value="NONE">NONE (Allow duplicates)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">API Source Identifier (<code class="text-slate-500">source</code>)</label>
+                <input id="cfg_vici_source" type="text" value="ViciCRM"
+                  class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+              <button type="submit"
+                class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition">
+                Save VICIdial Configuration
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Right Column: VICIdial Setup Checklist & Dispo Webhook Info -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-indigo-400"></i> VICIdial Admin Setup Checklist
+            </h3>
+            <ul class="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+              <li class="flex gap-2">
+                <span class="text-indigo-400 font-bold">1.</span>
+                <span>In VICIdial Admin &rarr; <strong>Users</strong>, ensure your API User (e.g. <code class="text-cyan-300">6666</code>) has <strong>User Level 8+</strong> and <code class="text-cyan-300">Modify Leads = 1</code>.</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-indigo-400 font-bold">2.</span>
+                <span>Under the API User's <strong>API Functions</strong> permission, allow <code class="text-cyan-300">add_lead</code>, <code class="text-cyan-300">external_dial</code>, <code class="text-cyan-300">external_hangup</code>, <code class="text-cyan-300">external_status</code>, and <code class="text-cyan-300">external_pause</code> (or set Allowed Functions to <code class="text-cyan-300">ALL</code>).</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-indigo-400 font-bold">3.</span>
+                <span>For <strong>Click-to-Dial</strong>, the agent must be logged into the VICIdial Agent Screen (<code class="text-cyan-300">/agc/vicidial.php</code>) and in <code class="text-cyan-300">PAUSED</code> or <code class="text-cyan-300">READY</code> state.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-arrows-rotate text-emerald-400"></i> 2-Way Disposition Sync (Dispo Call URL)
+            </h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Want VICIdial to automatically update lead dispositions back into this CRM after every call? Paste this URL into your VICIdial Campaign's <strong>Dispo Call URL</strong> field:
+            </p>
+            <pre id="viciDispoWebhookUrl" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] text-emerald-300 overflow-x-auto select-all"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- TAB 4: VICIDIAL API LOGS                                           -->
+    <!-- ================================================================== -->
+    <section id="tab-logs" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">VICIdial Non-Agent &amp; Agent API Request Logs</h2>
+          <p class="text-xs text-slate-400">Inspect exact request URLs and raw pipe-delimited responses returned by VICIdial.</p>
+        </div>
+        <button onclick="loadViciLogs()"
+          class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200">
+          <i class="fa-solid fa-rotate mr-1"></i> Refresh Logs
+        </button>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 bg-slate-950/60 text-slate-400 uppercase">
+                <th class="py-3 px-4">Time</th>
+                <th class="py-3 px-4">Action</th>
+                <th class="py-3 px-4">Lead</th>
+                <th class="py-3 px-4">VICIdial Response &amp; Request URL</th>
+              </tr>
+            </thead>
+            <tbody id="viciLogsBody" class="divide-y divide-slate-800/70">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================================================================== -->
+  <!-- MODAL: ADD / EDIT LEAD                                             -->
+  <!-- ================================================================== -->
+  <div id="leadModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="leadModalTitle" class="text-base font-bold text-white">Add New Lead</h3>
+        <button onclick="closeLeadModal()" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="submitLeadModal(event)" class="space-y-3.5">
+        <input type="hidden" id="modalLeadId" />
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">First Name</label>
+            <input id="modalFirstName" type="text"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Last Name</label>
+            <input id="modalLastName" type="text"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-2">
+            <label class="text-xs text-slate-400 block mb-1">Phone Number *</label>
+            <input id="modalPhone" type="text" required placeholder="3125550199"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">VICI List ID</label>
+            <input id="modalListId" type="text" value="101"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white mono" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Company</label>
+            <input id="modalCompany" type="text"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Email</label>
+            <input id="modalEmail" type="email"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">City</label>
+            <input id="modalCity" type="text"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">State</label>
+            <input id="modalState" type="text"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Status</label>
+            <select id="modalStatus"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white">
+              <option value="NEW">NEW</option>
+              <option value="DIALING">DIALING</option>
+              <option value="CONTACTED">CONTACTED</option>
+              <option value="INTERESTED">INTERESTED</option>
+              <option value="CALLBACK">CALLBACK</option>
+              <option value="SALE">SALE</option>
+              <option value="DNC">DNC</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Notes / Comments (Sent to VICI Agent Screen)</label>
+          <textarea id="modalNotes" rows="2"
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"></textarea>
+        </div>
+
+        <div id="modalPushRow" class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg p-3">
+          <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+            <input id="modalPushVici" type="checkbox" checked class="rounded bg-slate-900 border-slate-700 text-indigo-600" />
+            Immediately push lead to VICIdial list (<code class="text-indigo-400">add_lead</code>)
+          </label>
+          <label class="flex items-center gap-2 text-xs text-amber-300 cursor-pointer">
+            <input id="modalAddHopper" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-amber-500" />
+            Inject into Hopper
+          </label>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeLeadModal()"
+            class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">
+            Cancel
+          </button>
+          <button type="submit"
+            class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white">
+            Save Lead
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- MODAL: BULK CSV IMPORT                                             -->
+  <!-- ================================================================== -->
+  <div id="bulkModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white">Bulk Import Leads (CSV)</h3>
+        <button onclick="closeBulkImportModal()" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="space-y-3 text-xs text-slate-300">
+        <p>Upload a CSV file or paste CSV lines below. Supported columns: <code class="text-indigo-400">first_name,last_name,phone_number,email,company,city,state,notes</code></p>
+        <input type="file" id="csvFileInput" accept=".csv" onchange="handleCsvFileSelect(event)"
+          class="block w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/30" />
+        <textarea id="csvPasteArea" rows="6"
+          placeholder="first_name,last_name,phone_number,company,email&#10;John,Smith,3125550144,Acme Corp,john@acme.com&#10;Sarah,Connor,4155550188,Cyberdyne,sconnor@cyberdyne.io"
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white mono"></textarea>
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Target VICIdial List ID</label>
+            <input id="bulkListId" type="text" value="101"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white mono" />
+          </div>
+          <div class="flex items-end pb-1.5">
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-200">
+              <input id="bulkPushVici" type="checkbox" checked class="rounded bg-slate-900 border-slate-700 text-indigo-600" />
+              Auto-push imported leads to VICIdial
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeBulkImportModal()"
+          class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">
+          Cancel
+        </button>
+        <button onclick="submitBulkCsvImport()"
+          class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white">
+          Import Leads
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
